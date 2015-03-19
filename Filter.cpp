@@ -7,15 +7,16 @@ This code can be distributed and used only with WRITTEN PERMISSION.
 ********************************************************************
 */
 
-
-#define FILTER_NAME	"ME_your_surname"
-#define FILTER_DESCRIPTION "ME task filter"
-#define MAKER_NAME "PUT YOUR NAME HERE"
+#define FILTER_DESCRIPTION "Depth map filter"
+#define MAKER_NAME "EUGENE PEDAN"
 
 #include "types.h"
 #include "stdio.h"
 #include <time.h>
 #include <windows.h>
+
+#define FILTER_NAME	"DM_Pedan (202)"
+
 
 #define USE_PROCESS_TIMER \
 	QueryPerformanceFrequency(&mfd->freq_process_timer)
@@ -48,8 +49,8 @@ int startProc(FilterActivation *fa, const FilterFunctions *ff)
 	mfd->ext_w = mfd->width + BORDER * 2;
 	mfd->ext_h = mfd->height + BORDER * 2;
 	mfd->ext_size = mfd->ext_h * mfd->ext_w;
-	mfd->num_blocks_vert = mfd->height + 15 >> 4;
-	mfd->num_blocks_hor = mfd->width + 15 >> 4;
+	mfd->num_blocks_vert = (mfd->height + BLOCKSIZE - 1) >> BLOCKSIZELB;
+	mfd->num_blocks_hor = (mfd->width + BLOCKSIZE - 1) >> BLOCKSIZELB;
 	mfd->prev_Y = new BYTE[ mfd->ext_size ];
 	mfd->prev_Y_up = new BYTE[ mfd->ext_size ];
 	mfd->prev_Y_upl = new BYTE[ mfd->ext_size ];
@@ -467,6 +468,9 @@ void Log(const FilterActivation *fa, MV *mvectors)
 	fclose(f);
 }
 
+inline unsigned long GetColor(const MV &v);
+inline unsigned long GetColorHP(const MV &v);
+
 void DrawOutput(const FilterActivation *fa, MV *mvectors)
 {
 	MV mvector;
@@ -530,7 +534,7 @@ void DrawOutput(const FilterActivation *fa, MV *mvectors)
 			RGB_MC += w;
 		}
 	}
-	else if( mfd->show_MC )
+	else if( mfd->show_MC ) 
 	{
 		dst = (Pixel32*)fa->dst.data;
 		prev = mfd->prev_Y_MC;
@@ -619,28 +623,53 @@ void DrawOutput(const FilterActivation *fa, MV *mvectors)
 			RGB_MC += w;
 		}
 	}
-	if( mfd->show_vectors )
+	if( mfd->show_vectors )  // Карта глубины
 	{
+
 		dst = (Pixel32*)fa->dst.data;
-		for( i = 0; i < mfd->num_blocks_vert; i++ )
+		MV *vec;
+		unsigned long color;
+		if( mfd->use_half_pixel )
 		{
-			for( j = 0; j < mfd->num_blocks_hor; j++ )
+			for( i = 0; i < h; i++ )
 			{
-				mvector = mfd->MVectors[ i * mfd->num_blocks_hor + j ];
-				if(!mvector.splitted)
+				for( j = 0; j < w; j+=4 ) // для блока 4х4!
 				{
-					DrawLine(dst, w, h, p, (j << 4) + 8, ((i << 4) + 8), (j << 4) + mvector.x + 8, ((i << 4) + mvector.y + 8) );
+					vec = &mfd->MVectors[ (i>>BLOCKSIZELB) * mfd->num_blocks_hor + (j>>BLOCKSIZELB) ];
+					Pixel32 *pt = ((Pixel32*)((BYTE*)dst + i*p)) + j; 
+					*(pt+3) = *(pt+2) = *(pt+1) = *pt = GetColor(*vec);
 				}
-				else
+			}
+		}
+		else
+		{
+			for( i = 0; i < h; i++ )
+			{
+				for( j = 0; j < w; j+=4 ) // для блока 4х4!
 				{
-					for(int h = 0; h < 4; h++)
-					{
-						DrawLine(dst, w, h, p, (j << 4) + 8 + ((h & 1)? 4 : -4), ((i << 4) + 8 + ((h > 1)? 4 : -4)), (j << 4) + mvector.sub[h]->x + 8 + ((h & 1)? 4 : -4), ((i << 4) + mvector.sub[h]->y + 8 + ((h > 1)? 4 : -4)) );
-					}
+					vec = &mfd->MVectors[ (i>>BLOCKSIZELB) * mfd->num_blocks_hor + (j>>BLOCKSIZELB) ];
+					Pixel32 *pt = ((Pixel32*)((BYTE*)dst + i*p)) + j; 
+					*(pt+3) = *(pt+2) = *(pt+1) = *pt = GetColorHP(*vec);
 				}
 			}
 		}
 	}
+}
+
+inline unsigned long GetColor(const MV &v)
+{
+	unsigned long color = (abs(v.x) * 255) / MAX_MOTION;
+	color = color + (color << 8) + (color << 16);
+	return color;
+}
+
+inline unsigned long GetColorHP(const MV &v)
+{
+	unsigned long color = 2 * abs(v.x);
+	if(v.dir == sd_l || v.dir == sd_upl) --color;
+	color = (color * 128 - 1) / MAX_MOTION;
+	color = color + (color << 8) + (color << 16);
+	return color;
 }
 
 int SpatialNoiseLevel(const FilterActivation *fa, int _step, int _threshold, double *D_noise)
@@ -785,7 +814,7 @@ int runProc(const FilterActivation *fa, const FilterFunctions *ff)
 	short *prev_U = mfd->prev_U, *prev_V = mfd->prev_V;
 	short *prev_U_MC = mfd->prev_U_MC, *prev_V_MC = mfd->prev_V_MC;
 	int w = mfd->width, h = mfd->height, p = fa->src.pitch;
-	int num_blocks_hor = (w + 15) >> 4;
+	int num_blocks_hor = (w + BLOCKSIZE - 1) >> BLOCKSIZELB;
 	int wext = mfd->ext_w, hext = mfd->ext_h, sh_x, sh_y;
 	int first_row_offset = BORDER * wext, after_last_row_offset = (BORDER + h) * wext;
 	bool frame_with_even_lines;
@@ -936,7 +965,7 @@ int runProc(const FilterActivation *fa, const FilterFunctions *ff)
 	{
 		for( j = 0; j < w; j++ )
 		{
-			mvector = mfd->MVectors[ ( i >> 4 ) * num_blocks_hor + ( j >> 4 ) ];
+			mvector = mfd->MVectors[ ( i >> BLOCKSIZELB ) * num_blocks_hor + ( j >> BLOCKSIZELB ) ];
 			if(mvector.splitted)
 			{
 				block_id = (((i % 16) > 7)? 0x2 : 0x0) + (((j % 16) > 7)? 0x1 : 0x0);
@@ -1131,10 +1160,31 @@ int endProc(FilterActivation *fa, const FilterFunctions *ff)
 			fclose(tfile);
 		}
 	}
-	delete mfd->prev_Y;
-	delete mfd->cur_Y;
-	delete mfd->prev_Y_MC;
-	delete mfd->MVectors;
+	delete[] mfd->prev_Y;
+	delete[] mfd->prev_Y_up;
+	delete[] mfd->prev_Y_upl;
+	delete[] mfd->prev_Y_l;
+	delete[] mfd->prev_U;
+	delete[] mfd->prev_U_up;
+	delete[] mfd->prev_U_upl;
+	delete[] mfd->prev_U_l;
+	delete[] mfd->prev_U_MC;
+	delete[] mfd->prev_V;
+	delete[] mfd->prev_V_up;
+	delete[] mfd->prev_V_upl;
+	delete[] mfd->prev_V_l;
+	delete[] mfd->prev_V_MC;
+	delete[] mfd->prev_Y_MC;
+	delete[] mfd->prev_RGB;
+	delete[] mfd->prev_RGB_up;
+	delete[] mfd->prev_RGB_upl;
+	delete[] mfd->prev_RGB_l;
+	delete[] mfd->cur_U;
+	delete[] mfd->cur_V;
+	delete[] mfd->cur_Y;
+	delete[] mfd->output_buf;
+
+	delete[] mfd->MVectors;
 	return 0;
 }
 

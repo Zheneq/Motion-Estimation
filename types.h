@@ -27,9 +27,13 @@ This code can be distributed and used only with WRITTEN PERMISSION.
 #include <sys\stat.h>
 
 
-#define BORDER 48
-#define MAX_MOTION 32
+#define BORDER 96
+#define MAX_MOTION 64
 #define SPLIT_TRESH 1000
+
+
+#define GetError    GetErrorSAD_8x8
+enum MeConsts {BLOCKSIZE = 4, BLOCKSIZELB = 2};
 
 
 struct Point {
