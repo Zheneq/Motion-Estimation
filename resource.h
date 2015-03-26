@@ -13,17 +13,14 @@
 #define IDC_SHOWMC                      1008
 #define IDC_EDIT1                       1009
 #define IDC_QUALITY                     1010
-#define IDC_LOGNEED                     1011
+
 #define IDC_EDIT2                       1012
-#define IDC_LOGFILENAME                 1012
-#define IDC_LOGERRORANDLENGTH           1013
-#define IDC_LOG_VECTORS                 1013
-#define IDC_LOG_VECTORS_FILE            1014
+
 #define IDC_QUALITYSLIDER               1015
 #define IDC_QUALITYSPIN                 1016
-#define IDC_LOG_READ                    1017
+
 #define IDC_STATS                       1018
-#define IDC_LOG_READ_FILE               1018
+
 #define IDC_EDIT3                       1019
 #define IDSTATSFILENAME                 1019
 #define IDC_RADIO1                      1020

@@ -5,23 +5,53 @@
       <UniqueIdentifier>{938ed03b-1347-4bbe-86fb-cd67ca2636d0}</UniqueIdentifier>
       <Extensions>*</Extensions>
     </Filter>
+    <Filter Include="Headers">
+      <UniqueIdentifier>{696553c0-daec-43cb-9a7b-94d988478ec9}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Filter.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="MEFunctions.cpp">
+    <ClCompile Include="MotionEstimator.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="types.cpp">
+    <ClCompile Include="HalfPixel.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Metric.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="types.h">
-      <Filter>Source Files</Filter>
-    </ClInclude>
     <ClInclude Include="resource.h" />
+    <ClInclude Include="types.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="ScriptError.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="ScriptInterpreter.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="ScriptValue.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="Filter.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="VBitmap.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="MotionEstimator.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="HalfPixel.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="Metric.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="Dialog.rc" />

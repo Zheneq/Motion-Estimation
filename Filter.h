@@ -194,8 +194,11 @@ public:
 
 // FilterActivation: This is what is actually passed to filters at runtime.
 
-class FilterActivation {
+class FilterActivation
+{
 public:
+    FilterActivation& operator= (const FilterActivation&) = delete;
+
 	FilterDefinition *filter;
 	void *filter_data;
 	VFBitmap &dst, &src;
