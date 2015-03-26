@@ -8,9 +8,9 @@ This code can be distributed and used only with WRITTEN PERMISSION.
 */
 
 
-#define FILTER_NAME        "ME_your_surname"
+#define FILTER_NAME        "_ME_Pedan"
 #define FILTER_DESCRIPTION "ME task filter"
-#define MAKER_NAME         "PUT YOUR NAME HERE"
+#define MAKER_NAME         "Eugene Pedan"
 
 #include <memory>
 
@@ -287,7 +287,8 @@ int MotionEstimate(const FilterActivation *fa, const FilterFunctions*)
                                     mfd->prev_Y_l,
                                     mfd->prev_Y_upl,
                                     mfd->MVectors,
-                                    mfd->use_half_pixel);
+                                    mfd->use_half_pixel,
+									mfd->quality);
     return 0;
 }
 

@@ -29,7 +29,19 @@ public:
              const BYTE *prev_Y_frame_l,
              const BYTE *prev_Y_frame_upl,
              MV *MVectors,
-             const bool use_half_pixel);
+             const bool use_half_pixel,
+			 const BYTE quality);
+
+	/// Subroutines
+
+	void
+	BruteForce(const BYTE *cur_Y_frame,
+		const BYTE *prev_Y_frame,
+		const BYTE *prev_Y_frame_up,
+		const BYTE *prev_Y_frame_l,
+		const BYTE *prev_Y_frame_upl,
+		MV *MVectors,
+		const bool use_half_pixel);
 
     /// Border size
     static const int BORDER;
