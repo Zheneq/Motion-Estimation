@@ -287,8 +287,7 @@ int MotionEstimate(const FilterActivation *fa, const FilterFunctions*)
                                     mfd->prev_Y_l,
                                     mfd->prev_Y_upl,
                                     mfd->MVectors,
-                                    mfd->use_half_pixel,
-									mfd->quality);
+                                    mfd->use_half_pixel);
     return 0;
 }
 
