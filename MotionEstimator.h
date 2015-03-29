@@ -4,6 +4,8 @@
 #include "types.h"
 #include <list>
 
+#define BLOCK_8x8
+
 inline float SqrDiff(const MV& a, const MV& b)
 {
 	return pow((float)(a.x - b.x), 2) + pow((float)(a.y - b.y), 2);
@@ -127,7 +129,7 @@ private:
 			{
 				auto bm = *BestMatch;
 				pred.erase(BestMatch);
-				bm.vector.error = (bm.vector.error * bm.weight + vec.error * weight) / (bm.weight + weight);
+				bm.vector.error = (int)((bm.vector.error * bm.weight + vec.error * weight) / (bm.weight + weight));
 				bm.weight += weight;
 				auto it = pred.begin();
 				for (; it != pred.end(); ++it)
@@ -151,7 +153,8 @@ private:
 		}
 	};
 
-	PD *Predictions, *PrevPredictions;
+	PD *Predictions;
+	PD *PrevPredictions;
 	
 };
 
