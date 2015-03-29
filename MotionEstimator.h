@@ -126,19 +126,8 @@ private:
 			}
 			if (BestMatch != pred.end())
 			{
-				auto bm = *BestMatch;
-				pred.erase(BestMatch);
-				bm.vector.error = (int)((bm.vector.error * bm.weight + vec.error * weight) / (bm.weight + weight));
-				bm.weight += weight;
-				auto it = pred.begin();
-				for (; it != pred.end(); ++it)
-				{
-					if (it->weight <= bm.weight)
-					{
-						break;
-					}
-				}
-				pred.insert(it, bm);
+				BestMatch->vector.error = (int)((BestMatch->vector.error * BestMatch->weight + vec.error * weight) / (BestMatch->weight + weight));
+				BestMatch->weight += weight;
 			}
 			else
 			{
