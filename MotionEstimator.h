@@ -4,7 +4,6 @@
 #include "types.h"
 #include <list>
 
-#define BLOCK_8x8
 
 inline float SqrDiff(const MV& a, const MV& b)
 {

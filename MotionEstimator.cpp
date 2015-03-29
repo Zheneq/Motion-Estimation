@@ -101,11 +101,7 @@ const BYTE *prev_Y_frame_upl,
 MV *MVectors,
 const bool use_half_pixel)
 {
-//	if(quality == 100)
-//		BruteForce(cur_Y_frame, prev_Y_frame, prev_Y_frame_up, prev_Y_frame_l, prev_Y_frame_upl, MVectors, use_half_pixel);
-//	else
-		ARPS(cur_Y_frame, prev_Y_frame, prev_Y_frame_up, prev_Y_frame_l, prev_Y_frame_upl, MVectors, use_half_pixel);
-
+	ARPS(cur_Y_frame, prev_Y_frame, prev_Y_frame_up, prev_Y_frame_l, prev_Y_frame_upl, MVectors, use_half_pixel);
 }
 
 void
@@ -232,73 +228,44 @@ const bool use_half_pixel)
 			MV prob_motion_vector;
 			prob_motion_vector.dir = sd_none;
 
-#ifdef BLOCK_8x8
-			MVectors[block_id].Split();
-			for (int h = 0; h < 4; h++)
+			std::vector<MV> ToCheck;
+
+			Quota = 5 + quality / 2;
+
+			// Checking predictions
+			bool NoGoodPredictions = true;
+
+			PD &CurPred = PrevPredictions[pred_id];
+
+			for (auto it = CurPred.pred.begin(); it != CurPred.pred.end(); ++it)
 			{
-				vert_offset = (i * 16 + ((h > 1) ? 8 : 0)) * wext + first_row_offset;
-				hor_offset = j * 16 + ((h & 1) ? 8 : 0);
-				cur = cur_Y_frame + vert_offset + hor_offset;
-
-				prev = prev_Y_frame + vert_offset + hor_offset;
-				const int pred_mult = (16 / BLOCK_SIZE) * (16 / BLOCK_SIZE);
-				pred_id = block_id * pred_mult + h;
-
-#endif
-
-				std::vector<MV> ToCheck;
-
-				Quota = 5 + quality / 2;
-
-				// Checking predictions
-				bool NoGoodPredictions = true;
-
-				PD &CurPred = PrevPredictions[pred_id];
-
-				for (auto it = CurPred.pred.begin(); it != CurPred.pred.end(); ++it)
+				error = GetError(cur, prev + it->vector.y * wext + it->vector.x, wext);
+				if (error < min_error)
 				{
-					error = GetError(cur, prev + it->vector.y * wext + it->vector.x, wext);
-					if (error < min_error)
-					{
-						prob_motion_vector = it->vector;
-						prob_motion_vector.error = error;
-						min_error = error;
-					}
-					if (error < 2 * it->vector.error)
-					{
-						NoGoodPredictions = false;
-						ToCheck.push_back(it->vector);
-					}
+					prob_motion_vector = it->vector;
+					prob_motion_vector.error = error;
+					min_error = error;
 				}
-
-				if (NoGoodPredictions)
+				if (error < 2 * it->vector.error)
 				{
-					// Don't have predictions, go Diamond Search
-					min_error = prob_motion_vector.error = GetError(cur, prev, wext);
+					NoGoodPredictions = false;
+					ToCheck.push_back(it->vector);
+				}
+			}
 
-					const int ERROR_THRESHOLD = 10;
+			if (NoGoodPredictions)
+			{
+				// Don't have predictions, go Diamond Search
+				min_error = prob_motion_vector.error = GetError(cur, prev, wext);
 
-					bool ContinueDP = min_error > ERROR_THRESHOLD;
-					while (ContinueDP && Quota >= 2 * (int)ARRAYSIZE(VLDP))
-					{
-						ContinueDP = false;
-						MV origin = prob_motion_vector;
-						for (pt &p : VLDP)
-						{
-							error = GetError(cur, prev + (p.y + origin.y) * wext + (p.x + origin.x), wext);
-							if (error < min_error)
-							{
-								prob_motion_vector.x = origin.x + p.x;
-								prob_motion_vector.y = origin.y + p.y;
-								prob_motion_vector.error = error;
-								min_error = error;
-								ContinueDP = true;
-							}
-						}
-					}
+				const int ERROR_THRESHOLD = 10;
 
+				bool ContinueDP = min_error > ERROR_THRESHOLD;
+				while (ContinueDP && Quota >= 2 * (int)ARRAYSIZE(VLDP))
+				{
+					ContinueDP = false;
 					MV origin = prob_motion_vector;
-					for (pt &p : LDP)
+					for (pt &p : VLDP)
 					{
 						error = GetError(cur, prev + (p.y + origin.y) * wext + (p.x + origin.x), wext);
 						if (error < min_error)
@@ -310,131 +277,95 @@ const bool use_half_pixel)
 							ContinueDP = true;
 						}
 					}
-
-					ToCheck.push_back(prob_motion_vector);
 				}
 
-				// Small diamond pattern
-				bool ContinueSDP = true;
-				while (ContinueSDP)
+				MV origin = prob_motion_vector;
+				for (pt &p : LDP)
 				{
-					ContinueSDP = false;
-					MV origin = prob_motion_vector;
-					for (pt &p : SDP)
+					error = GetError(cur, prev + (p.y + origin.y) * wext + (p.x + origin.x), wext);
+					if (error < min_error)
 					{
-						error = GetError(cur, prev + (p.y + origin.y) * wext + (p.x + origin.x), wext);
-						if (error < min_error)
-						{
-							prob_motion_vector.x = origin.x + p.x;
-							prob_motion_vector.y = origin.y + p.y;
-							prob_motion_vector.error = error;
-							min_error = error;
-							ContinueSDP = true;
-						}
-					}
-					if (Quota < (int)ARRAYSIZE(SDP)) break;
-				}
-
-				// Use half-pixel precision
-				if (use_half_pixel)
-				{
-					for (const auto dir_image : shifted_frames)
-					{
-						const auto direction = dir_image.first;
-						prev = dir_image.second + vert_offset + hor_offset;
-
-						error = GetError(cur, prev + prob_motion_vector.y * wext + prob_motion_vector.x, wext);
-						if (error < min_error)
-						{
-							prob_motion_vector.dir = direction;
-							prob_motion_vector.error = error;
-							min_error = error;
-						}
+						prob_motion_vector.x = origin.x + p.x;
+						prob_motion_vector.y = origin.y + p.y;
+						prob_motion_vector.error = error;
+						min_error = error;
+						ContinueDP = true;
 					}
 				}
-#ifdef BLOCK_8x8
-				MVectors[block_id].SubVector(h) = prob_motion_vector;
-#else
-				MVectors[block_id] = prob_motion_vector;
-#endif
 
-				// Predictions
-#ifdef BLOCK_8x8
-/*
-				const int left = 2 * (h % 2) - 3;
-				const int right = 1 + 2 * (h % 2);
-				const int down = (h >> 1)*(pred_mult * num_blocks_hor - pred_mult) + 2;
-				const int up = (h >> 1)*(pred_mult * num_blocks_hor - pred_mult) + 2 - pred_mult * num_blocks_hor;
-
-				// Adjacent blocks
-				if (j != num_blocks_hor - 1 || h % 2 == 0)
-				{
-					PrevPredictions[pred_id + right].AddVector(prob_motion_vector);
-					if (i != num_blocks_vert - 1 || h >> 1 == 0)
-						PrevPredictions[pred_id + right + down].AddVector(prob_motion_vector);
-				}
-				if ((j != 0 || h % 2) && (i != num_blocks_vert - 1 || h / 2 == 0))
-				{
-					PrevPredictions[pred_id + down + left].AddVector(prob_motion_vector);
-				}
-				if (i != num_blocks_vert - 1 || h / 2 == 0)
-					PrevPredictions[pred_id + down].AddVector(prob_motion_vector);
-
-				// Future blocks
-				int t;
-				const float POINT_RADIUS = 0.1f;
-				float dx = (float)prob_motion_vector.x / 16;
-				float dy = (float)prob_motion_vector.y / 16;
-
-
-				for (int i = -1; i <= 1; ++i)
-				for (int j = -1; j <= 1; ++j)
-				{
-					if ((t = block_id + (int)(dy + POINT_RADIUS * i) * num_blocks_hor + (int)(dx + POINT_RADIUS)) < num_blocks_vert * num_blocks_hor && t >= 0)
-						Predictions[t * pred_mult + h].AddVector(prob_motion_vector, 1.0f/6.0f);
-				}
-//*/
-#else
-
-				// Adjacent blocks
-				if (j != num_blocks_hor - 1)
-				{
-					PrevPredictions[block_id + 1].AddVector(prob_motion_vector);
-					if (i != num_blocks_vert - 1)
-						PrevPredictions[block_id + num_blocks_hor + 1].AddVector(prob_motion_vector);
-				}
-				if (j != 0 && i != num_blocks_vert - 1)
-				{
-					PrevPredictions[block_id + num_blocks_hor - 1].AddVector(prob_motion_vector);
-				}
-				if (i != num_blocks_vert - 1)
-					PrevPredictions[block_id + num_blocks_hor].AddVector(prob_motion_vector);
-
-				// Future blocks
-				int t;
-				const float POINT_RADIUS = 0.1f;
-				float dx = (float)prob_motion_vector.x / BLOCK_SIZE;
-				float dy = (float)prob_motion_vector.y / BLOCK_SIZE;
-
-				for (int i = -1; i <= 1; ++i)
-				for (int j = -1; j <= 1; ++j)
-				{
-					if ((t = block_id + (int)(dy + POINT_RADIUS * i) * num_blocks_hor + (int)(dx + POINT_RADIUS)) < num_blocks_vert * num_blocks_hor && t >= 0)
-						Predictions[t].AddVector(prob_motion_vector, 1.0f / 6.0f);
-				}
-#endif
-				FILE *f = fopen("D:\\log.txt", "a");
-				fprintf(f, "%d\n", Quota);
-				fclose(f);
-#ifdef BLOCK_8x8
+				ToCheck.push_back(prob_motion_vector);
 			}
-#endif
+
+			// Small diamond pattern
+			bool ContinueSDP = true;
+			while (ContinueSDP)
+			{
+				ContinueSDP = false;
+				MV origin = prob_motion_vector;
+				for (pt &p : SDP)
+				{
+					error = GetError(cur, prev + (p.y + origin.y) * wext + (p.x + origin.x), wext);
+					if (error < min_error)
+					{
+						prob_motion_vector.x = origin.x + p.x;
+						prob_motion_vector.y = origin.y + p.y;
+						prob_motion_vector.error = error;
+						min_error = error;
+						ContinueSDP = true;
+					}
+				}
+				if (Quota < (int)ARRAYSIZE(SDP)) break;
+			}
+
+			// Use half-pixel precision
+			if (use_half_pixel)
+			{
+				for (const auto dir_image : shifted_frames)
+				{
+					const auto direction = dir_image.first;
+					prev = dir_image.second + vert_offset + hor_offset;
+
+					error = GetError(cur, prev + prob_motion_vector.y * wext + prob_motion_vector.x, wext);
+					if (error < min_error)
+					{
+						prob_motion_vector.dir = direction;
+						prob_motion_vector.error = error;
+						min_error = error;
+					}
+				}
+			}
+
+			MVectors[block_id] = prob_motion_vector;
+
+
+			// Predictions
+
+			// Adjacent blocks
+			if (j != num_blocks_hor - 1)
+			{
+				PrevPredictions[block_id + 1].AddVector(prob_motion_vector);
+				if (i != num_blocks_vert - 1)
+					PrevPredictions[block_id + num_blocks_hor + 1].AddVector(prob_motion_vector);
+			}
+			if (j != 0 && i != num_blocks_vert - 1)
+			{
+				PrevPredictions[block_id + num_blocks_hor - 1].AddVector(prob_motion_vector);
+			}
+			if (i != num_blocks_vert - 1)
+				PrevPredictions[block_id + num_blocks_hor].AddVector(prob_motion_vector);
+
+			// Future blocks
+			int t;
+			const float POINT_RADIUS = 0.1f;
+			float dx = (float)prob_motion_vector.x / BLOCK_SIZE;
+			float dy = (float)prob_motion_vector.y / BLOCK_SIZE;
+
+			for (int i = -1; i <= 1; ++i)
+			for (int j = -1; j <= 1; ++j)
+			{
+				if ((t = block_id + (int)(dy + POINT_RADIUS * i) * num_blocks_hor + (int)(dx + POINT_RADIUS)) < num_blocks_vert * num_blocks_hor && t >= 0)
+					Predictions[t].AddVector(prob_motion_vector, 1.0f / 6.0f);
+			}
 		}
-		FILE *f = fopen("D:\\log.txt", "a");
-		fprintf(f, "===============================================================\n");
-		fclose(f);
-		f = fopen("D:\\pred.txt", "a");
-		fprintf(f, "===============================================================\n");
-		fclose(f);
 	}
 }
